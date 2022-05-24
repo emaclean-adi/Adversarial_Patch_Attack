@@ -53,7 +53,7 @@ def patch_attack(image, applied_patch, mask, target, probability_threshold, mode
         # Optimize the patch
         perturbated_image = Variable(perturbated_image.data, requires_grad=True)
         per_image = perturbated_image
-        per_image = per_image.cuda()
+        #per_image = per_image.cuda()
         output = model(per_image)
         target_log_softmax = torch.nn.functional.log_softmax(output, dim=1)[0][target]
         target_log_softmax.backward()
@@ -64,7 +64,7 @@ def patch_attack(image, applied_patch, mask, target, probability_threshold, mode
         # Test the patch
         perturbated_image = torch.mul(mask.type(torch.FloatTensor), applied_patch.type(torch.FloatTensor)) + torch.mul((1-mask.type(torch.FloatTensor)), image.type(torch.FloatTensor))
         perturbated_image = torch.clamp(perturbated_image, min=-3, max=3)
-        perturbated_image = perturbated_image.cuda()
+        #perturbated_image = perturbated_image.cuda()
         output = model(perturbated_image)
         target_probability = torch.nn.functional.softmax(output, dim=1).data[0][target]
     perturbated_image = perturbated_image.cpu().numpy()
@@ -74,7 +74,8 @@ def patch_attack(image, applied_patch, mask, target, probability_threshold, mode
 os.environ["CUDA_VISIBLE_DEVICES"] = args.GPU
 
 # Load the model
-model = models.resnet50(pretrained=True).cuda()
+#model = models.resnet50(pretrained=True).cuda()
+model = models.resnet50(pretrained=True)
 model.eval()
 
 # Load the datasets

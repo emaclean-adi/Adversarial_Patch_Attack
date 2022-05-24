@@ -37,8 +37,8 @@ def test_patch(patch_type, target, patch, test_loader, model):
     for (image, label) in test_loader:
         test_total += label.shape[0]
         assert image.shape[0] == 1, 'Only one picture should be loaded each time.'
-        image = image.cuda()
-        label = label.cuda()
+        #image = image.cuda()
+        #label = label.cuda()
         output = model(image)
         _, predicted = torch.max(output.data, 1)
         if predicted[0] != label and predicted[0].data.cpu().numpy() != target:
