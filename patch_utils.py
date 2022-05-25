@@ -11,7 +11,7 @@ from utils import normalizeOutput
 def patch_initialization(patch_type='rectangle', image_size=(3, 224, 224), noise_percentage=0.03):
     if patch_type == 'rectangle':
         mask_length = int((noise_percentage * image_size[1] * image_size[2])**0.5)
-        patch = np.random.rand(image_size[0], mask_length, mask_length)
+        patch = np.floor((np.random.rand(image_size[0], mask_length, mask_length) - 0.5)*256).astype(np.int8)
     return patch
 
 # Generate the mask and apply the patch
@@ -40,6 +40,8 @@ def test_patch(patch_type, target, patch, test_loader, model):
         assert image.shape[0] == 1, 'Only one picture should be loaded each time.'
         #image = image.cuda()
         #label = label.cuda()
+        assert image.min() >= -128, 'input should be larger than -128'
+        assert image.max() <=  127, 'input should be less than 128'
         output = model(image)
         output = normalizeOutput(output,model)
         _, predicted = torch.max(output.data, 1)

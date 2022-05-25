@@ -6,7 +6,7 @@ Reference:
 [1] Tom B. Brown, Dandelion Mané, Aurko Roy, Martín Abadi, Justin Gilmer
     Adversarial Patch. arXiv:1712.09665
 """
-
+import pdb
 import copy
 import fnmatch
 import logging
@@ -105,7 +105,8 @@ batch_size = 1
 num_workers = 2
 train_size = 2000
 test_size = 2000
-noise_percentage = 0.9
+noise_percentage = 0.1
+probability_threshold = 0.9
 lr = 1.0
 max_iteration = 1000
 target = 0
@@ -413,12 +414,14 @@ def main():
             args.effective_train_size, args.effective_valid_size, args.effective_test_size)
 
     # Test the accuracy of model on trainset and testset
-    trainset_acc, test_acc = test(model, train_loader), test(model, test_loader)
-    print('Accuracy of the model on clean trainset and testset is {:.3f}% and {:.3f}%'.format(100*trainset_acc, 100*test_acc))
+    print("running model test")
+    #trainset_acc, test_acc = test(model, train_loader), test(model, test_loader)
+    #print('Accuracy of the model on clean trainset and testset is {:.3f}% and {:.3f}%'.format(100*trainset_acc, 100*test_acc))
 
     # Initialize the patch
     #todo make the shape match the shape of our images
     patch = patch_initialization(patch_type, image_size=(3, imgheight, imgwidth), noise_percentage=noise_percentage)
+    #pdb.set_trace()
     print('The shape of the patch is', patch.shape)
 
     with open(log_dir, 'w') as f:
@@ -436,6 +439,7 @@ def main():
             assert image.shape[0] == 1, 'Only one picture should be loaded each time.'
             #image = image.cuda()
             #label = label.cuda()
+            
             output = model(image)
             output = normalizeOutput(output,model)
             _, predicted = torch.max(output.data, 1)
@@ -443,19 +447,27 @@ def main():
                  #here if it is not in our target class then add patch into image and input image with patch added into the model.
                  train_actual_total += 1
                  #create a patch
-                 applied_patch, mask, x_location, y_location = mask_generation(patch_type, patch, image_size=(3, 224, 224))
+                 applied_patch, mask, x_location, y_location = mask_generation(patch_type, patch, image_size=(3, imgheight, imgheight))
                  #applied_patch is numpy array
                  #optimize the patch for this image
                  perturbated_image, applied_patch = patch_attack(image, applied_patch, mask, target, probability_threshold, model, lr, max_iteration)
-                 perturbated_image = torch.from_numpy(perturbated_image).cuda()
+                 perturbated_image = torch.from_numpy(perturbated_image)
+                 assert perturbated_image.min() >= -128, 'input should be larger than -128'
+                 assert perturbated_image.max() <=  127, 'input should be less than 128'
                  output = model(perturbated_image)
                  output = normalizeOutput(output,model)
                  _, predicted = torch.max(output.data, 1)
                  if predicted[0].data.cpu().numpy() == target:
                      train_success += 1
                  patch = applied_patch[0][:, x_location:x_location + patch.shape[1], y_location:y_location + patch.shape[2]]
-        mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
-        plt.imshow(np.clip(np.transpose(patch, (1, 2, 0)) * std + mean, 0, 1))
+        #mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225] #transform used in original dataloader
+        #plt.imshow(np.clip(np.transpose(patch, (1, 2, 0)) * std + mean, 0, 1))
+        assert np.min(patch) >= -128, 'input should be larger than -128'
+        assert np.max(patch) <=  127, 'input should be less than 128'
+        patchimg=np.moveaxis(patch,0,2)
+        patchimgunsigned = patchimg+128
+        imgfile=Image.fromarray(patchimgunsigned.astype('uint8'),'RGB')
+        img.save("training_pictures/" + str(epoch) + " patch.png")
         plt.savefig("training_pictures/" + str(epoch) + " patch.png")
         print("Epoch:{} Patch attack success rate on trainset: {:.3f}%".format(epoch, 100 * train_success / train_actual_total))
         train_success_rate = test_patch(patch_type, target, patch, test_loader, model)
@@ -495,7 +507,14 @@ def patch_attack(image, applied_patch, mask, target, probability_threshold, mode
         # Optimize the patch
         perturbated_image = Variable(perturbated_image.data, requires_grad=True)
         per_image = perturbated_image
+        # if(per_image.min() < -128):
+           # pdb.set_trace()
+        # if(per_image.max() >127):
+           # pdb.set_trace()
+        assert per_image.min() >= -128, 'input should be larger than -128'
+        assert per_image.max() <=127, 'input should be less than 128'
         #per_image = per_image.cuda()
+        #pdb.set_trace()
         output = model(per_image)
         output = normalizeOutput(output,model)
         target_log_softmax = torch.nn.functional.log_softmax(output, dim=1)[0][target]
@@ -504,13 +523,14 @@ def patch_attack(image, applied_patch, mask, target, probability_threshold, mode
         perturbated_image.grad.data.zero_()
         #follow gradient
         applied_patch = lr * patch_grad + applied_patch.type(torch.FloatTensor)
-        applied_patch = torch.clamp(applied_patch, min=-3, max=3)
+        applied_patch = torch.clamp(applied_patch, min=-128, max=127)
         # Test the patch
         perturbated_image = torch.mul(mask.type(torch.FloatTensor), applied_patch.type(torch.FloatTensor)) + torch.mul((1-mask.type(torch.FloatTensor)), image.type(torch.FloatTensor))
         #todo perturbed image input needs to be normalized to data range
-        perturbated_image = torch.clamp(perturbated_image, min=-3, max=3)
+        perturbated_image = torch.clamp(perturbated_image, min=-128, max=127)
         #perturbated_image = perturbated_image.cuda()
-        
+        assert perturbated_image.min() >= -128, 'input should be larger than -128'
+        assert perturbated_image.max() <=127, 'input should be less than 128'
         output = model(perturbated_image)
         output = normalizeOutput(output,model)
         target_probability = torch.nn.functional.softmax(output, dim=1).data[0][target]
