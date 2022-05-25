@@ -7,6 +7,7 @@ Reference:
     Adversarial Patch. arXiv:1712.09665
 """
 import pdb
+from PIL import Image
 import copy
 import fnmatch
 import logging
@@ -413,7 +414,10 @@ def main():
             # args.workers, args.validation_split, args.deterministic,
             # args.effective_train_size, args.effective_valid_size, args.effective_test_size)
             
-    args.effective_train_size = 0.03
+    #args.effective_train_size = 0.03
+    #args.effective_valid_size = 0.03
+    #args.effective_test_size = 0.03
+    args.effective_train_size = 0.001
     args.effective_valid_size = 0.03
     args.effective_test_size = 0.03
     train_loader, val_loader, test_loader, _ = apputils.get_data_loaders(
@@ -441,6 +445,8 @@ def main():
     print("training size "+str(len(train_loader)))
     print("validation size "+str(len(val_loader)))
     print("test size "+str(len(test_loader)))
+    
+    numinputimages = 0
 
     # Generate the patch
     #train
@@ -472,6 +478,9 @@ def main():
                  if predicted[0].data.cpu().numpy() == target:
                      train_success += 1
                  patch = applied_patch[0][:, x_location:x_location + patch.shape[1], y_location:y_location + patch.shape[2]]
+            numinputimages += 1
+            if((numinputimages %100) == 0):
+                print("number of training images used " + str(numinputimages))
         #mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225] #transform used in original dataloader
         #plt.imshow(np.clip(np.transpose(patch, (1, 2, 0)) * std + mean, 0, 1))
         assert np.min(patch) >= -128, 'input should be larger than -128'
@@ -479,7 +488,7 @@ def main():
         patchimg=np.moveaxis(patch,0,2)
         patchimgunsigned = patchimg+128
         imgfile=Image.fromarray(patchimgunsigned.astype('uint8'),'RGB')
-        img.save("training_pictures/" + str(epoch) + " patch.png")
+        imgfile.save("training_pictures/" + str(epoch) + " patch.png")
         #plt.savefig("training_pictures/" + str(epoch) + " patch.png")
         print("Epoch:{} Patch attack success rate on trainset: {:.3f}%".format(epoch, 100 * train_success / train_actual_total))
         train_success_rate = test_patch(patch_type, target, patch, test_loader, model)
@@ -495,11 +504,17 @@ def main():
         if test_success_rate > best_patch_success_rate:
             best_patch_success_rate = test_success_rate
             best_patch_epoch = epoch
-            plt.imshow(np.clip(np.transpose(patch, (1, 2, 0)) * std + mean, 0, 1))
-            plt.savefig("training_pictures/best_patch.png")
+            assert np.min(patch) >= -128, 'input should be larger than -128'
+            assert np.max(patch) <=  127, 'input should be less than 128'
+            patchimg=np.moveaxis(patch,0,2)
+            patchimgunsigned = patchimg+128
+            imgfile=Image.fromarray(patchimgunsigned.astype('uint8'),'RGB')
+            imgfile.save("training_pictures/" + str(epoch) + " patch.png")
+            #plt.imshow(np.clip(np.transpose(patch, (1, 2, 0)) * std + mean, 0, 1))
+            #plt.savefig("training_pictures/best_patch.png")
 
         # Load the statistics and generate the line
-        log_generation(log_dir)
+        #log_generation(log_dir)
 
     print("The best patch is found at epoch {} with success rate {}% on testset".format(best_patch_epoch, 100 * best_patch_success_rate))
 
