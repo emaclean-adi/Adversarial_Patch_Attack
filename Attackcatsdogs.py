@@ -408,6 +408,14 @@ def main():
     #        args.effective_train_size, args.effective_valid_size, args.effective_test_size)
     batchsz  = 1
 
+    # train_loader, val_loader, test_loader, _ = apputils.get_data_loaders(
+            # args.datasets_fn, (os.path.expanduser(args.data), args), batchsz,
+            # args.workers, args.validation_split, args.deterministic,
+            # args.effective_train_size, args.effective_valid_size, args.effective_test_size)
+            
+    args.effective_train_size = 0.03
+    args.effective_valid_size = 0.03
+    args.effective_test_size = 0.03
     train_loader, val_loader, test_loader, _ = apputils.get_data_loaders(
             args.datasets_fn, (os.path.expanduser(args.data), args), batchsz,
             args.workers, args.validation_split, args.deterministic,
@@ -429,6 +437,10 @@ def main():
         writer.writerow(["epoch", "train_success", "test_success"])
 
     best_patch_epoch, best_patch_success_rate = 0, 0
+    
+    print("training size "+str(len(train_loader)))
+    print("validation size "+str(len(val_loader)))
+    print("test size "+str(len(test_loader)))
 
     # Generate the patch
     #train
@@ -468,7 +480,7 @@ def main():
         patchimgunsigned = patchimg+128
         imgfile=Image.fromarray(patchimgunsigned.astype('uint8'),'RGB')
         img.save("training_pictures/" + str(epoch) + " patch.png")
-        plt.savefig("training_pictures/" + str(epoch) + " patch.png")
+        #plt.savefig("training_pictures/" + str(epoch) + " patch.png")
         print("Epoch:{} Patch attack success rate on trainset: {:.3f}%".format(epoch, 100 * train_success / train_actual_total))
         train_success_rate = test_patch(patch_type, target, patch, test_loader, model)
         print("Epoch:{} Patch attack success rate on trainset: {:.3f}%".format(epoch, 100 * train_success_rate))
