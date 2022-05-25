@@ -5,6 +5,8 @@
 import numpy as np
 import torch
 from utils import normalizeOutput
+from PIL import Image
+import pdb
 
 # Initialize the patch
 # TODO: Add circle type
@@ -61,4 +63,15 @@ def test_patch(patch_type, target, patch, test_loader, model):
             _, predicted = torch.max(output.data, 1)
             if predicted[0].data.cpu().numpy() == target:
                 test_success += 1
+                # if you want to see the successful test image
+                # pdb.set_trace()
+                # patchimg=np.moveaxis(perturbated_image[0][:][:][:].numpy().astype('uint8'),0,2)
+                # patchimgunsigned = patchimg+128
+                # imgfile=Image.fromarray(patchimgunsigned.astype('uint8'),'RGB')
+                # imgfile.save("training_pictures/" + str(test_success) + " successfulperturbedimg.png")
+                # patchimg=np.moveaxis(image[0][:][:][:].numpy().astype('uint8'),0,2)
+                # patchimgunsigned = patchimg+128
+                # imgfile=Image.fromarray(patchimgunsigned.astype('uint8'),'RGB')
+                # imgfile.save("training_pictures/" + str(test_success) + " groundtruth.png")
+                
     return test_success / test_actual_total

@@ -417,9 +417,9 @@ def main():
     #args.effective_train_size = 0.03
     #args.effective_valid_size = 0.03
     #args.effective_test_size = 0.03
-    args.effective_train_size = 0.001
-    args.effective_valid_size = 0.03
-    args.effective_test_size = 0.03
+    args.effective_train_size = 0.1
+    args.effective_valid_size = 0.1
+    args.effective_test_size = 0.1
     train_loader, val_loader, test_loader, _ = apputils.get_data_loaders(
             args.datasets_fn, (os.path.expanduser(args.data), args), batchsz,
             args.workers, args.validation_split, args.deterministic,
@@ -512,7 +512,7 @@ def main():
             imgfile.save("training_pictures/" + str(epoch) + " patch.png")
             #plt.imshow(np.clip(np.transpose(patch, (1, 2, 0)) * std + mean, 0, 1))
             #plt.savefig("training_pictures/best_patch.png")
-
+        numinputimages = 0 
         # Load the statistics and generate the line
         #log_generation(log_dir)
 
