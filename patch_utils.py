@@ -4,6 +4,7 @@
 
 import numpy as np
 import torch
+from utils import normalizeOutput
 
 # Initialize the patch
 # TODO: Add circle type
@@ -40,15 +41,19 @@ def test_patch(patch_type, target, patch, test_loader, model):
         #image = image.cuda()
         #label = label.cuda()
         output = model(image)
+        output = normalizeOutput(output,model)
         _, predicted = torch.max(output.data, 1)
         if predicted[0] != label and predicted[0].data.cpu().numpy() != target:
+            #if this sample is not the target class we want to spoof then insert our patch into the image and evaluate the model on the image including the patch. if the patch changes the output of the model to the target we want then test succeeds
             test_actual_total += 1
             applied_patch, mask, x_location, y_location = mask_generation(patch_type, patch, image_size=(3, 224, 224))
             applied_patch = torch.from_numpy(applied_patch)
             mask = torch.from_numpy(mask)
+            #todo we need to change this to match expected input range for max78000 and normalize input data to correct data range after this
             perturbated_image = torch.mul(mask.type(torch.FloatTensor), applied_patch.type(torch.FloatTensor)) + torch.mul((1 - mask.type(torch.FloatTensor)), image.type(torch.FloatTensor))
-            perturbated_image = perturbated_image.cuda()
+            #perturbated_image = perturbated_image.cuda()
             output = model(perturbated_image)
+            output = normalizeOutput(output,model)
             _, predicted = torch.max(output.data, 1)
             if predicted[0].data.cpu().numpy() == target:
                 test_success += 1

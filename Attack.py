@@ -7,6 +7,9 @@ Reference:
     Adversarial Patch. arXiv:1712.09665
 """
 
+
+#target label is the adversarial label we want ("robots" class)
+
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -20,6 +23,9 @@ import numpy as np
 
 from patch_utils import*
 from utils import*
+
+imgheight = 128
+imgwidth = 128
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', type=int, default=1, help="batch size")
@@ -59,12 +65,15 @@ def patch_attack(image, applied_patch, mask, target, probability_threshold, mode
         target_log_softmax.backward()
         patch_grad = perturbated_image.grad.clone().cpu()
         perturbated_image.grad.data.zero_()
+        #follow gradient
         applied_patch = lr * patch_grad + applied_patch.type(torch.FloatTensor)
         applied_patch = torch.clamp(applied_patch, min=-3, max=3)
         # Test the patch
         perturbated_image = torch.mul(mask.type(torch.FloatTensor), applied_patch.type(torch.FloatTensor)) + torch.mul((1-mask.type(torch.FloatTensor)), image.type(torch.FloatTensor))
+        #todo perturbed image input needs to be normalized to data range
         perturbated_image = torch.clamp(perturbated_image, min=-3, max=3)
         #perturbated_image = perturbated_image.cuda()
+        
         output = model(perturbated_image)
         target_probability = torch.nn.functional.softmax(output, dim=1).data[0][target]
     perturbated_image = perturbated_image.cpu().numpy()
@@ -79,14 +88,28 @@ model = models.resnet50(pretrained=True)
 model.eval()
 
 # Load the datasets
-train_loader, test_loader = dataloader(args.train_size, args.test_size, args.data_dir, args.batch_size, args.num_workers, 50000)
+#train_loader, test_loader = dataloader(args.train_size, args.test_size, args.data_dir, args.batch_size, args.num_workers, 50000)
+
+# Load the datasets
+#make batch size 1 so we only work on one image at a time
+#train_loader, val_loader, test_loader, _ = apputils.get_data_loaders(
+#        args.datasets_fn, (os.path.expanduser(args.data), args), args.batch_size,
+#        args.workers, args.validation_split, args.deterministic,
+#        args.effective_train_size, args.effective_valid_size, args.effective_test_size)
+batchsz  = 1
+
+train_loader, val_loader, test_loader, _ = apputils.get_data_loaders(
+        args.datasets_fn, (os.path.expanduser(args.data), args), batchsz,
+        args.workers, args.validation_split, args.deterministic,
+        args.effective_train_size, args.effective_valid_size, args.effective_test_size)
 
 # Test the accuracy of model on trainset and testset
 trainset_acc, test_acc = test(model, train_loader), test(model, test_loader)
 print('Accuracy of the model on clean trainset and testset is {:.3f}% and {:.3f}%'.format(100*trainset_acc, 100*test_acc))
 
 # Initialize the patch
-patch = patch_initialization(args.patch_type, image_size=(3, 224, 224), noise_percentage=args.noise_percentage)
+#todo make the shape match the shape of our images
+patch = patch_initialization(args.patch_type, image_size=(3, imgheight, imgwidth), noise_percentage=args.noise_percentage)
 print('The shape of the patch is', patch.shape)
 
 with open(args.log_dir, 'w') as f:
@@ -96,18 +119,23 @@ with open(args.log_dir, 'w') as f:
 best_patch_epoch, best_patch_success_rate = 0, 0
 
 # Generate the patch
+#train
 for epoch in range(args.epochs):
     train_total, train_actual_total, train_success = 0, 0, 0
     for (image, label) in train_loader:
         train_total += label.shape[0]
         assert image.shape[0] == 1, 'Only one picture should be loaded each time.'
-        image = image.cuda()
-        label = label.cuda()
+        #image = image.cuda()
+        #label = label.cuda()
         output = model(image)
         _, predicted = torch.max(output.data, 1)
         if predicted[0] != label and predicted[0].data.cpu().numpy() != args.target:
+             #here if it is not in our target class then add patch into image and input image with patch added into the model.
              train_actual_total += 1
+             #create a patch
              applied_patch, mask, x_location, y_location = mask_generation(args.patch_type, patch, image_size=(3, 224, 224))
+             #applied_patch is numpy array
+             #optimize the patch for this image
              perturbated_image, applied_patch = patch_attack(image, applied_patch, mask, args.target, args.probability_threshold, model, args.lr, args.max_iteration)
              perturbated_image = torch.from_numpy(perturbated_image).cuda()
              output = model(perturbated_image)
