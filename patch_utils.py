@@ -34,16 +34,16 @@ def mask_generation(mask_type='rectangle', patch=None, image_size=(3, 224, 224))
     return applied_patch, mask, x_location, y_location
 
 # Test the patch on dataset
-def test_patch(patch_type, target, patch, test_loader, model):
+def test_patch(patch_type, target, patch, test_loader, model,args):
     model.eval()
     test_total, test_actual_total, test_success = 0, 0, 0
     for (image, label) in test_loader:
         test_total += label.shape[0]
         assert image.shape[0] == 1, 'Only one picture should be loaded each time.'
-        #image = image.cuda()
-        #label = label.cuda()
         assert image.min() >= -128, 'input should be larger than -128'
         assert image.max() <=  127, 'input should be less than 128'
+        image = image.to(args.device)
+        label = label.to(args.device)
         output = model(image)
         output = normalizeOutput(output,model)
         _, predicted = torch.max(output.data, 1)
@@ -55,9 +55,9 @@ def test_patch(patch_type, target, patch, test_loader, model):
             mask = torch.from_numpy(mask)
             #todo we need to change this to match expected input range for max78000 and normalize input data to correct data range after this
             perturbated_image = torch.mul(mask.type(torch.FloatTensor), applied_patch.type(torch.FloatTensor)) + torch.mul((1 - mask.type(torch.FloatTensor)), image.type(torch.FloatTensor))
-            #perturbated_image = perturbated_image.cuda()
             assert image.min() >= -128, 'input should be larger than -128'
             assert image.max() <=  127, 'input should be less than 128'
+            perturbated_image = perturbated_image.to(args.device)
             output = model(perturbated_image)
             output = normalizeOutput(output,model)
             _, predicted = torch.max(output.data, 1)

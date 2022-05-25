@@ -53,13 +53,13 @@ def normalizeOutput(output, model):
     # return train_loader, test_loader
 
 # Test the model on clean dataset
-def test(model, dataloader):
+def test(model, dataloader,args):
     model.eval()
     correct, total, loss = 0, 0, 0
     with torch.no_grad():
         for (images, labels) in dataloader:
-            #images = images.cuda()
-            #labels = labels.cuda()
+            images = images.to(args.device)
+            labels = labels.to(args.device)
             outputs = model(images)
             outputs = normalizeOutput(outputs, model)
             _, predicted = torch.max(outputs.data, 1)

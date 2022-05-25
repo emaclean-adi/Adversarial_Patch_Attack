@@ -396,6 +396,8 @@ def main():
     # Load the model
     #model = models.resnet50(pretrained=True).cuda()
     #model = models.resnet50(pretrained=True)
+    print("device "+ args.device)
+    model.to(args.device)
     model.eval()
 
     # Load the datasets
@@ -418,8 +420,8 @@ def main():
     #args.effective_valid_size = 0.03
     #args.effective_test_size = 0.03
     args.effective_train_size = 0.1
-    args.effective_valid_size = 0.1
-    args.effective_test_size = 0.1
+    args.effective_valid_size = 0.5
+    args.effective_test_size = 0.5
     train_loader, val_loader, test_loader, _ = apputils.get_data_loaders(
             args.datasets_fn, (os.path.expanduser(args.data), args), batchsz,
             args.workers, args.validation_split, args.deterministic,
@@ -427,8 +429,8 @@ def main():
 
     # Test the accuracy of model on trainset and testset
     print("running model test")
-    #trainset_acc, test_acc = test(model, train_loader), test(model, test_loader)
-    #print('Accuracy of the model on clean trainset and testset is {:.3f}% and {:.3f}%'.format(100*trainset_acc, 100*test_acc))
+    trainset_acc, test_acc = test(model, train_loader,args), test(model, test_loader,args)
+    print('Accuracy of the model on clean trainset and testset is {:.3f}% and {:.3f}%'.format(100*trainset_acc, 100*test_acc))
 
     # Initialize the patch
     #todo make the shape match the shape of our images
@@ -455,8 +457,8 @@ def main():
         for (image, label) in train_loader:
             train_total += label.shape[0]
             assert image.shape[0] == 1, 'Only one picture should be loaded each time.'
-            #image = image.cuda()
-            #label = label.cuda()
+            image = image.to(args.device)
+            label = label.to(args.device)
             
             output = model(image)
             output = normalizeOutput(output,model)
@@ -468,8 +470,8 @@ def main():
                  applied_patch, mask, x_location, y_location = mask_generation(patch_type, patch, image_size=(3, imgheight, imgheight))
                  #applied_patch is numpy array
                  #optimize the patch for this image
-                 perturbated_image, applied_patch = patch_attack(image, applied_patch, mask, target, probability_threshold, model, lr, max_iteration)
-                 perturbated_image = torch.from_numpy(perturbated_image)
+                 perturbated_image, applied_patch = patch_attack(args,image, applied_patch, mask, target, probability_threshold, model, lr, max_iteration)
+                 perturbated_image = torch.from_numpy(perturbated_image).to(args.device)
                  assert perturbated_image.min() >= -128, 'input should be larger than -128'
                  assert perturbated_image.max() <=  127, 'input should be less than 128'
                  output = model(perturbated_image)
@@ -491,9 +493,9 @@ def main():
         imgfile.save("training_pictures/" + str(epoch) + " patch.png")
         #plt.savefig("training_pictures/" + str(epoch) + " patch.png")
         print("Epoch:{} Patch attack success rate on trainset: {:.3f}%".format(epoch, 100 * train_success / train_actual_total))
-        train_success_rate = test_patch(patch_type, target, patch, test_loader, model)
+        train_success_rate = test_patch(patch_type, target, patch, test_loader, model,args)
         print("Epoch:{} Patch attack success rate on trainset: {:.3f}%".format(epoch, 100 * train_success_rate))
-        test_success_rate = test_patch(patch_type, target, patch, test_loader, model)
+        test_success_rate = test_patch(patch_type, target, patch, test_loader, model,args)
         print("Epoch:{} Patch attack success rate on testset: {:.3f}%".format(epoch, 100 * test_success_rate))
 
         # Record the statistics
@@ -523,7 +525,7 @@ def main():
 # According to reference [1], one image is attacked each time
 # Assert: applied patch should be a numpy
 # Return the final perturbated picture and the applied patch. Their types are both numpy
-def patch_attack(image, applied_patch, mask, target, probability_threshold, model, lr=1, max_iteration=100):
+def patch_attack(args,image, applied_patch, mask, target, probability_threshold, model, lr=1, max_iteration=100):
     model.eval()
     applied_patch = torch.from_numpy(applied_patch)
     mask = torch.from_numpy(mask)
@@ -540,7 +542,7 @@ def patch_attack(image, applied_patch, mask, target, probability_threshold, mode
            # pdb.set_trace()
         assert per_image.min() >= -128, 'input should be larger than -128'
         assert per_image.max() <=127, 'input should be less than 128'
-        #per_image = per_image.cuda()
+        per_image = per_image.to(args.device)
         #pdb.set_trace()
         output = model(per_image)
         output = normalizeOutput(output,model)
@@ -555,7 +557,7 @@ def patch_attack(image, applied_patch, mask, target, probability_threshold, mode
         perturbated_image = torch.mul(mask.type(torch.FloatTensor), applied_patch.type(torch.FloatTensor)) + torch.mul((1-mask.type(torch.FloatTensor)), image.type(torch.FloatTensor))
         #todo perturbed image input needs to be normalized to data range
         perturbated_image = torch.clamp(perturbated_image, min=-128, max=127)
-        #perturbated_image = perturbated_image.cuda()
+        perturbated_image = perturbated_image.to(args.device)
         assert perturbated_image.min() >= -128, 'input should be larger than -128'
         assert perturbated_image.max() <=127, 'input should be less than 128'
         output = model(perturbated_image)
