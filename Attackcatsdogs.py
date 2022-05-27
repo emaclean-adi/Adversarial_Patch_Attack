@@ -109,9 +109,11 @@ test_size = 2000
 noise_percentage = 0.1
 probability_threshold = 0.9
 lr = 1.0
-max_iteration = 1000
-target = 0
-epochs = 20
+#max_iteration = 1000
+max_iteration = 100000
+target = 1   #what the patch should look like: 0 cat 1 dog
+#epochs = 20
+epochs = 100
 data_dir = 'pathtodataset'
 patch_type = 'rectangle'
 GPU = '0'
@@ -419,9 +421,19 @@ def main():
     #args.effective_train_size = 0.03
     #args.effective_valid_size = 0.03
     #args.effective_test_size = 0.03
-    args.effective_train_size = 0.1
-    args.effective_valid_size = 0.5
-    args.effective_test_size = 0.5
+    
+    #normal settings use
+    # args.effective_train_size = 0.1
+    # args.effective_valid_size = 0.5
+    # args.effective_test_size = 0.5
+    
+    
+    #test settings for quick debug
+    #args.effective_train_size = 0.03
+    #args.effective_valid_size = 0.5
+    #args.effective_test_size = 0.5
+    
+    
     train_loader, val_loader, test_loader, _ = apputils.get_data_loaders(
             args.datasets_fn, (os.path.expanduser(args.data), args), batchsz,
             args.workers, args.validation_split, args.deterministic,
@@ -463,11 +475,11 @@ def main():
             output = model(image)
             output = normalizeOutput(output,model)
             _, predicted = torch.max(output.data, 1)
-            if predicted[0] != label and predicted[0].data.cpu().numpy() != target:
+            if predicted[0] == label and predicted[0].data.cpu().numpy() != target:
                  #here if it is not in our target class then add patch into image and input image with patch added into the model.
                  train_actual_total += 1
                  #create a patch
-                 applied_patch, mask, x_location, y_location = mask_generation(patch_type, patch, image_size=(3, imgheight, imgheight))
+                 applied_patch, mask, x_location, y_location = mask_generation(patch_type, patch, image_size=(3, imgwidth, imgheight))
                  #applied_patch is numpy array
                  #optimize the patch for this image
                  perturbated_image, applied_patch = patch_attack(args,image, applied_patch, mask, target, probability_threshold, model, lr, max_iteration)
@@ -481,7 +493,7 @@ def main():
                      train_success += 1
                  patch = applied_patch[0][:, x_location:x_location + patch.shape[1], y_location:y_location + patch.shape[2]]
             numinputimages += 1
-            if((numinputimages %100) == 0):
+            if((numinputimages %10000) == 0):
                 print("number of training images used " + str(numinputimages))
         #mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225] #transform used in original dataloader
         #plt.imshow(np.clip(np.transpose(patch, (1, 2, 0)) * std + mean, 0, 1))
@@ -550,6 +562,7 @@ def patch_attack(args,image, applied_patch, mask, target, probability_threshold,
         target_log_softmax.backward()
         patch_grad = perturbated_image.grad.clone().cpu()
         perturbated_image.grad.data.zero_()
+        #pdb.set_trace()
         #follow gradient
         applied_patch = lr * patch_grad + applied_patch.type(torch.FloatTensor)
         applied_patch = torch.clamp(applied_patch, min=-128, max=127)
@@ -563,6 +576,9 @@ def patch_attack(args,image, applied_patch, mask, target, probability_threshold,
         output = model(perturbated_image)
         output = normalizeOutput(output,model)
         target_probability = torch.nn.functional.softmax(output, dim=1).data[0][target]
+        if(not patch_grad.ne(0).any().item()):
+           #gradient is 0
+           break
     perturbated_image = perturbated_image.cpu().numpy()
     applied_patch = applied_patch.cpu().numpy()
     return perturbated_image, applied_patch
