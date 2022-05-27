@@ -108,9 +108,10 @@ train_size = 2000
 test_size = 2000
 noise_percentage = 0.1
 probability_threshold = 0.9
-lr = 1.0
-#max_iteration = 1000
-max_iteration = 100000
+#lr = 1.0
+lr = .01
+max_iteration = 1000
+#max_iteration = 100000
 target = 1   #what the patch should look like: 0 cat 1 dog
 #epochs = 20
 epochs = 100
@@ -429,9 +430,9 @@ def main():
     
     
     #test settings for quick debug
-    #args.effective_train_size = 0.03
-    #args.effective_valid_size = 0.5
-    #args.effective_test_size = 0.5
+    # args.effective_train_size = 0.003
+    # args.effective_valid_size = 0.05
+    # args.effective_test_size = 0.05
     
     
     train_loader, val_loader, test_loader, _ = apputils.get_data_loaders(
@@ -461,6 +462,13 @@ def main():
     print("test size "+str(len(test_loader)))
     
     numinputimages = 0
+    
+    if(args.act_mode_8bit):
+       datamin = -128
+       datamax = 127
+    else:
+       datamin = -1
+       datamax = 127/128
 
     # Generate the patch
     #train
@@ -484,8 +492,8 @@ def main():
                  #optimize the patch for this image
                  perturbated_image, applied_patch = patch_attack(args,image, applied_patch, mask, target, probability_threshold, model, lr, max_iteration)
                  perturbated_image = torch.from_numpy(perturbated_image).to(args.device)
-                 assert perturbated_image.min() >= -128, 'input should be larger than -128'
-                 assert perturbated_image.max() <=  127, 'input should be less than 128'
+                 assert perturbated_image.min() >= datamin, 'input should be larger than -128'
+                 assert perturbated_image.max() <=  datamax, 'input should be less than 128'
                  output = model(perturbated_image)
                  output = normalizeOutput(output,model)
                  _, predicted = torch.max(output.data, 1)
@@ -497,10 +505,13 @@ def main():
                 print("number of training images used " + str(numinputimages))
         #mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225] #transform used in original dataloader
         #plt.imshow(np.clip(np.transpose(patch, (1, 2, 0)) * std + mean, 0, 1))
-        assert np.min(patch) >= -128, 'input should be larger than -128'
-        assert np.max(patch) <=  127, 'input should be less than 128'
+        assert np.min(patch) >= datamin, 'input should be larger than -128'
+        assert np.max(patch) <=  datamax, 'input should be less than 128'
         patchimg=np.moveaxis(patch,0,2)
-        patchimgunsigned = patchimg+128
+        if(args.act_mode_8bit):
+            patchimgunsigned = patchimg+128
+        else:
+            patchimgunsigned = (patchimg*128)+128
         imgfile=Image.fromarray(patchimgunsigned.astype('uint8'),'RGB')
         imgfile.save("training_pictures/" + str(epoch) + " patch.png")
         #plt.savefig("training_pictures/" + str(epoch) + " patch.png")
@@ -518,14 +529,18 @@ def main():
         if test_success_rate > best_patch_success_rate:
             best_patch_success_rate = test_success_rate
             best_patch_epoch = epoch
-            assert np.min(patch) >= -128, 'input should be larger than -128'
-            assert np.max(patch) <=  127, 'input should be less than 128'
+            #assert np.min(patch) >= -128, 'input should be larger than -128'
+            #assert np.max(patch) <=  127, 'input should be less than 128'
             patchimg=np.moveaxis(patch,0,2)
-            patchimgunsigned = patchimg+128
+            if(args.act_mode_8bit):
+                patchimgunsigned = patchimg+128
+            else:
+                patchimgunsigned = (patchimg*128)+128
             imgfile=Image.fromarray(patchimgunsigned.astype('uint8'),'RGB')
-            imgfile.save("training_pictures/" + str(epoch) + " patch.png")
+            imgfile.save("training_pictures/" + str(epoch) + " best_patch.png")
             #plt.imshow(np.clip(np.transpose(patch, (1, 2, 0)) * std + mean, 0, 1))
             #plt.savefig("training_pictures/best_patch.png")
+                
         numinputimages = 0 
         # Load the statistics and generate the line
         #log_generation(log_dir)
@@ -538,6 +553,12 @@ def main():
 # Assert: applied patch should be a numpy
 # Return the final perturbated picture and the applied patch. Their types are both numpy
 def patch_attack(args,image, applied_patch, mask, target, probability_threshold, model, lr=1, max_iteration=100):
+    if(args.act_mode_8bit):
+       datamin = -128
+       datamax = 127
+    else:
+       datamin = -1
+       datamax = 127/128
     model.eval()
     applied_patch = torch.from_numpy(applied_patch)
     mask = torch.from_numpy(mask)
@@ -552,8 +573,8 @@ def patch_attack(args,image, applied_patch, mask, target, probability_threshold,
            # pdb.set_trace()
         # if(per_image.max() >127):
            # pdb.set_trace()
-        assert per_image.min() >= -128, 'input should be larger than -128'
-        assert per_image.max() <=127, 'input should be less than 128'
+        assert per_image.min() >= datamin, 'input should be larger than -128'
+        assert per_image.max() <=datamax, 'input should be less than 128'
         per_image = per_image.to(args.device)
         #pdb.set_trace()
         output = model(per_image)
@@ -565,19 +586,20 @@ def patch_attack(args,image, applied_patch, mask, target, probability_threshold,
         #pdb.set_trace()
         #follow gradient
         applied_patch = lr * patch_grad + applied_patch.type(torch.FloatTensor)
-        applied_patch = torch.clamp(applied_patch, min=-128, max=127)
+        applied_patch = torch.clamp(applied_patch, min=datamin, max=datamax)
         # Test the patch
         perturbated_image = torch.mul(mask.type(torch.FloatTensor), applied_patch.type(torch.FloatTensor)) + torch.mul((1-mask.type(torch.FloatTensor)), image.type(torch.FloatTensor))
         #todo perturbed image input needs to be normalized to data range
-        perturbated_image = torch.clamp(perturbated_image, min=-128, max=127)
+        perturbated_image = torch.clamp(perturbated_image, min=datamin, max=datamax)
         perturbated_image = perturbated_image.to(args.device)
-        assert perturbated_image.min() >= -128, 'input should be larger than -128'
-        assert perturbated_image.max() <=127, 'input should be less than 128'
+        assert perturbated_image.min() >= datamin, 'input should be larger than -128'
+        assert perturbated_image.max() <=datamax, 'input should be less than 128'
         output = model(perturbated_image)
         output = normalizeOutput(output,model)
         target_probability = torch.nn.functional.softmax(output, dim=1).data[0][target]
         if(not patch_grad.ne(0).any().item()):
            #gradient is 0
+           #print("gradient 0 skipping " + str(count))
            break
     perturbated_image = perturbated_image.cpu().numpy()
     applied_patch = applied_patch.cpu().numpy()

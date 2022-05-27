@@ -11,13 +11,14 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 
-#output from MAX78000
-def normalizeOutput(output, model):
-    output /= 128.
-    for key in model.__dict__['_modules'].keys():
-        if (hasattr(model.__dict__['_modules'][key], 'wide')
-                and model.__dict__['_modules'][key].wide):
-            output /= 256.
+#output from MAX78000   only if in eval mode
+def normalizeOutput(output, model, act_mode_8bit = False):
+    if act_mode_8bit:
+        output /= 128.
+        for key in model.__dict__['_modules'].keys():
+            if (hasattr(model.__dict__['_modules'][key], 'wide')
+                    and model.__dict__['_modules'][key].wide):
+                output /= 256.
     return output
 
 # Load the datasets

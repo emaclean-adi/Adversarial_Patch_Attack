@@ -13,7 +13,9 @@ import pdb
 def patch_initialization(patch_type='rectangle', image_size=(3, 224, 224), noise_percentage=0.03):
     if patch_type == 'rectangle':
         mask_length = int((noise_percentage * image_size[1] * image_size[2])**0.5)
-        patch = np.floor((np.random.rand(image_size[0], mask_length, mask_length) - 0.5)*256).astype(np.int8)
+        #for 8bit mode
+        #patch = np.floor((np.random.rand(image_size[0], mask_length, mask_length) - 0.5)*256).astype(np.int8)
+        patch = np.floor((np.random.rand(image_size[0], mask_length, mask_length) - 0.5)*(2*(127/128)))
     return patch
 
 # Generate the mask and apply the patch
@@ -37,11 +39,17 @@ def mask_generation(mask_type='rectangle', patch=None, image_size=(3, 224, 224))
 def test_patch(patch_type, target, patch, test_loader, model,args):
     model.eval()
     test_total, test_actual_total, test_success = 0, 0, 0
+    if(args.act_mode_8bit):
+       datamin = -128
+       datamax = 127
+    else:
+       datamin = -1
+       datamax = 127/128
     for (image, label) in test_loader:
         test_total += label.shape[0]
         assert image.shape[0] == 1, 'Only one picture should be loaded each time.'
-        assert image.min() >= -128, 'input should be larger than -128'
-        assert image.max() <=  127, 'input should be less than 128'
+        assert image.min() >= datamin, 'input should be larger than -128'
+        assert image.max() <= datamax, 'input should be less than 128'
         #image = image.to(args.device)
         image = image.to(args.device)
         label = label.to(args.device)
@@ -56,8 +64,8 @@ def test_patch(patch_type, target, patch, test_loader, model,args):
             mask = torch.from_numpy(mask)
             #todo we need to change this to match expected input range for max78000 and normalize input data to correct data range after this
             perturbated_image = torch.mul(mask.type(torch.FloatTensor), applied_patch.type(torch.FloatTensor)) + torch.mul((1 - mask.type(torch.FloatTensor)), image.type(torch.FloatTensor))
-            assert image.min() >= -128, 'input should be larger than -128'
-            assert image.max() <=  127, 'input should be less than 128'
+            assert image.min() >= datamin, 'input should be larger than -128'
+            assert image.max() <= datamax, 'input should be less than 128'
             perturbated_image = perturbated_image.to(args.device)
             output = model(perturbated_image)
             output = normalizeOutput(output,model)
