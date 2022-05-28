@@ -82,12 +82,7 @@ from patch_utils import*
 from utils import*
 
 
-use_load_patch = True
-evaluate_only = True
-patch_file_path = "training_pictures/loaded_patch.png"
 
-imgheight = 128
-imgwidth = 128
 
 #hardcoding the attack argparser to use the argparser for max78000 instead
 # parser = argparse.ArgumentParser()
@@ -131,6 +126,12 @@ log_dir = 'patch_attack_log.csv'
 #script_dir = os.path.dirname('/c/MaximSDK/Tools/ai8x-tools/ai8x-training')
 def main():
     """main"""
+    use_load_patch = False
+    evaluate_only = False
+    patch_file_path = "training_pictures/loaded_patch.png"
+
+    imgheight = 128
+    imgwidth = 128
     script_dir = os.path.dirname(__file__)
     global msglogger  # pylint: disable=global-statement
     matplotlib.use("pgf")
@@ -407,6 +408,13 @@ def main():
     print("device "+ args.device)
     model.to(args.device)
     model.eval()
+    
+    print("Noise percentage " + str(noise_percentage))
+    print("probability_threshold " + str(probability_threshold))
+    print("lr " + str(lr))
+    print("max_iteration " + str(max_iteration))
+    print("target " + str(target))
+
 
     # Load the datasets
     #train_loader, test_loader = dataloader(args.train_size, args.test_size, args.data_dir, args.batch_size, args.num_workers, 50000)
