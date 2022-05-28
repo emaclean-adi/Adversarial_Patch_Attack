@@ -81,6 +81,11 @@ import numpy as np
 from patch_utils import*
 from utils import*
 
+
+use_load_patch = True
+evaluate_only = True
+patch_file_path = "training_pictures/loaded_patch.png"
+
 imgheight = 128
 imgwidth = 128
 
@@ -106,12 +111,15 @@ batch_size = 1
 num_workers = 2
 train_size = 2000
 test_size = 2000
-noise_percentage = 0.1
-probability_threshold = 0.9
-lr = 1.0
+noise_percentage = 0.05
+probability_threshold = 0.99
+#lr = 1.0
+lr = .01
 max_iteration = 1000
-target = 0
-epochs = 20
+#max_iteration = 100000
+target = 1   #what the patch should look like: 0 cat 1 dog
+#epochs = 20
+epochs = 100
 data_dir = 'pathtodataset'
 patch_type = 'rectangle'
 GPU = '0'
@@ -396,6 +404,8 @@ def main():
     # Load the model
     #model = models.resnet50(pretrained=True).cuda()
     #model = models.resnet50(pretrained=True)
+    print("device "+ args.device)
+    model.to(args.device)
     model.eval()
 
     # Load the datasets
@@ -417,36 +427,68 @@ def main():
     #args.effective_train_size = 0.03
     #args.effective_valid_size = 0.03
     #args.effective_test_size = 0.03
-    args.effective_train_size = 0.1
-    args.effective_valid_size = 0.1
-    args.effective_test_size = 0.1
+    
+    #normal settings use
+    # args.effective_train_size = 0.1
+    # args.effective_valid_size = 0.5
+    # args.effective_test_size = 0.5
+    
+    
+    #test settings for quick debug
+    # args.effective_train_size = 0.003
+    # args.effective_valid_size = 0.05
+    # args.effective_test_size = 0.05
+    
+    
     train_loader, val_loader, test_loader, _ = apputils.get_data_loaders(
             args.datasets_fn, (os.path.expanduser(args.data), args), batchsz,
             args.workers, args.validation_split, args.deterministic,
             args.effective_train_size, args.effective_valid_size, args.effective_test_size)
+            
+    print("training size "+str(len(train_loader)))
+    print("validation size "+str(len(val_loader)))
+    print("test size "+str(len(test_loader)))
+            
+    if(args.act_mode_8bit):
+        print("Running in 8 bit mode. Evaluation only, training disabled")
+        use_load_patch = True
+        evaluate_only = True
 
     # Test the accuracy of model on trainset and testset
     print("running model test")
-    #trainset_acc, test_acc = test(model, train_loader), test(model, test_loader)
+    #trainset_acc, test_acc = test(model, train_loader,args), test(model, test_loader,args)
     #print('Accuracy of the model on clean trainset and testset is {:.3f}% and {:.3f}%'.format(100*trainset_acc, 100*test_acc))
 
     # Initialize the patch
-    #todo make the shape match the shape of our images
-    patch = patch_initialization(patch_type, image_size=(3, imgheight, imgwidth), noise_percentage=noise_percentage)
+    if(use_load_patch):
+        print("Loading patch from "+patch_file_path)
+        patch = load_patch(patch_file_path, args.act_mode_8bit)
+    else:
+        patch = patch_initialization(patch_type, image_size=(3, imgheight, imgwidth), noise_percentage=noise_percentage)
     #pdb.set_trace()
     print('The shape of the patch is', patch.shape)
+    
+    if(evaluate_only):
+        train_success_rate = test_patch(patch_type, target, patch, train_loader, model,args)
+        print("Patch attack success rate on trainset: {:.3f}%".format(100 * train_success_rate))
+        test_success_rate = test_patch(patch_type, target, patch, test_loader, model,args)
+        print("Patch attack success rate on testset: {:.3f}%".format(100 * test_success_rate))
+        return
 
     with open(log_dir, 'w') as f:
         writer = csv.writer(f)
         writer.writerow(["epoch", "train_success", "test_success"])
 
     best_patch_epoch, best_patch_success_rate = 0, 0
-    
-    print("training size "+str(len(train_loader)))
-    print("validation size "+str(len(val_loader)))
-    print("test size "+str(len(test_loader)))
-    
+
     numinputimages = 0
+    
+    if(args.act_mode_8bit):
+       datamin = -128
+       datamax = 127
+    else:
+       datamin = -1
+       datamax = 127/128
 
     # Generate the patch
     #train
@@ -455,23 +497,23 @@ def main():
         for (image, label) in train_loader:
             train_total += label.shape[0]
             assert image.shape[0] == 1, 'Only one picture should be loaded each time.'
-            #image = image.cuda()
-            #label = label.cuda()
+            image = image.to(args.device)
+            label = label.to(args.device)
             
             output = model(image)
             output = normalizeOutput(output,model)
             _, predicted = torch.max(output.data, 1)
-            if predicted[0] != label and predicted[0].data.cpu().numpy() != target:
+            if predicted[0] == label and predicted[0].data.cpu().numpy() != target:
                  #here if it is not in our target class then add patch into image and input image with patch added into the model.
                  train_actual_total += 1
                  #create a patch
-                 applied_patch, mask, x_location, y_location = mask_generation(patch_type, patch, image_size=(3, imgheight, imgheight))
+                 applied_patch, mask, x_location, y_location = mask_generation(patch_type, patch, image_size=(3, imgwidth, imgheight))
                  #applied_patch is numpy array
                  #optimize the patch for this image
-                 perturbated_image, applied_patch = patch_attack(image, applied_patch, mask, target, probability_threshold, model, lr, max_iteration)
-                 perturbated_image = torch.from_numpy(perturbated_image)
-                 assert perturbated_image.min() >= -128, 'input should be larger than -128'
-                 assert perturbated_image.max() <=  127, 'input should be less than 128'
+                 perturbated_image, applied_patch = patch_attack(args,image, applied_patch, mask, target, probability_threshold, model, lr, max_iteration)
+                 perturbated_image = torch.from_numpy(perturbated_image).to(args.device)
+                 assert perturbated_image.min() >= datamin, 'input should be larger than -128'
+                 assert perturbated_image.max() <=  datamax, 'input should be less than 128'
                  output = model(perturbated_image)
                  output = normalizeOutput(output,model)
                  _, predicted = torch.max(output.data, 1)
@@ -479,21 +521,24 @@ def main():
                      train_success += 1
                  patch = applied_patch[0][:, x_location:x_location + patch.shape[1], y_location:y_location + patch.shape[2]]
             numinputimages += 1
-            if((numinputimages %100) == 0):
+            if((numinputimages %10000) == 0):
                 print("number of training images used " + str(numinputimages))
         #mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225] #transform used in original dataloader
         #plt.imshow(np.clip(np.transpose(patch, (1, 2, 0)) * std + mean, 0, 1))
-        assert np.min(patch) >= -128, 'input should be larger than -128'
-        assert np.max(patch) <=  127, 'input should be less than 128'
+        assert np.min(patch) >= datamin, 'input should be larger than -128'
+        assert np.max(patch) <=  datamax, 'input should be less than 128'
         patchimg=np.moveaxis(patch,0,2)
-        patchimgunsigned = patchimg+128
+        if(args.act_mode_8bit):
+            patchimgunsigned = patchimg+128
+        else:
+            patchimgunsigned = (patchimg*128)+128
         imgfile=Image.fromarray(patchimgunsigned.astype('uint8'),'RGB')
         imgfile.save("training_pictures/" + str(epoch) + " patch.png")
         #plt.savefig("training_pictures/" + str(epoch) + " patch.png")
         print("Epoch:{} Patch attack success rate on trainset: {:.3f}%".format(epoch, 100 * train_success / train_actual_total))
-        train_success_rate = test_patch(patch_type, target, patch, test_loader, model)
+        train_success_rate = test_patch(patch_type, target, patch, test_loader, model,args)
         print("Epoch:{} Patch attack success rate on trainset: {:.3f}%".format(epoch, 100 * train_success_rate))
-        test_success_rate = test_patch(patch_type, target, patch, test_loader, model)
+        test_success_rate = test_patch(patch_type, target, patch, test_loader, model,args)
         print("Epoch:{} Patch attack success rate on testset: {:.3f}%".format(epoch, 100 * test_success_rate))
 
         # Record the statistics
@@ -504,14 +549,18 @@ def main():
         if test_success_rate > best_patch_success_rate:
             best_patch_success_rate = test_success_rate
             best_patch_epoch = epoch
-            assert np.min(patch) >= -128, 'input should be larger than -128'
-            assert np.max(patch) <=  127, 'input should be less than 128'
+            #assert np.min(patch) >= -128, 'input should be larger than -128'
+            #assert np.max(patch) <=  127, 'input should be less than 128'
             patchimg=np.moveaxis(patch,0,2)
-            patchimgunsigned = patchimg+128
+            if(args.act_mode_8bit):
+                patchimgunsigned = patchimg+128
+            else:
+                patchimgunsigned = (patchimg*128)+128
             imgfile=Image.fromarray(patchimgunsigned.astype('uint8'),'RGB')
-            imgfile.save("training_pictures/" + str(epoch) + " patch.png")
+            imgfile.save("training_pictures/" + str(epoch) + " best_patch.png")
             #plt.imshow(np.clip(np.transpose(patch, (1, 2, 0)) * std + mean, 0, 1))
             #plt.savefig("training_pictures/best_patch.png")
+                
         numinputimages = 0 
         # Load the statistics and generate the line
         #log_generation(log_dir)
@@ -523,7 +572,13 @@ def main():
 # According to reference [1], one image is attacked each time
 # Assert: applied patch should be a numpy
 # Return the final perturbated picture and the applied patch. Their types are both numpy
-def patch_attack(image, applied_patch, mask, target, probability_threshold, model, lr=1, max_iteration=100):
+def patch_attack(args,image, applied_patch, mask, target, probability_threshold, model, lr=1, max_iteration=100):
+    if(args.act_mode_8bit):
+       datamin = -128
+       datamax = 127
+    else:
+       datamin = -1
+       datamax = 127/128
     model.eval()
     applied_patch = torch.from_numpy(applied_patch)
     mask = torch.from_numpy(mask)
@@ -538,9 +593,9 @@ def patch_attack(image, applied_patch, mask, target, probability_threshold, mode
            # pdb.set_trace()
         # if(per_image.max() >127):
            # pdb.set_trace()
-        assert per_image.min() >= -128, 'input should be larger than -128'
-        assert per_image.max() <=127, 'input should be less than 128'
-        #per_image = per_image.cuda()
+        assert per_image.min() >= datamin, 'input should be larger than -128'
+        assert per_image.max() <=datamax, 'input should be less than 128'
+        per_image = per_image.to(args.device)
         #pdb.set_trace()
         output = model(per_image)
         output = normalizeOutput(output,model)
@@ -548,19 +603,24 @@ def patch_attack(image, applied_patch, mask, target, probability_threshold, mode
         target_log_softmax.backward()
         patch_grad = perturbated_image.grad.clone().cpu()
         perturbated_image.grad.data.zero_()
+        #pdb.set_trace()
         #follow gradient
         applied_patch = lr * patch_grad + applied_patch.type(torch.FloatTensor)
-        applied_patch = torch.clamp(applied_patch, min=-128, max=127)
+        applied_patch = torch.clamp(applied_patch, min=datamin, max=datamax)
         # Test the patch
         perturbated_image = torch.mul(mask.type(torch.FloatTensor), applied_patch.type(torch.FloatTensor)) + torch.mul((1-mask.type(torch.FloatTensor)), image.type(torch.FloatTensor))
         #todo perturbed image input needs to be normalized to data range
-        perturbated_image = torch.clamp(perturbated_image, min=-128, max=127)
-        #perturbated_image = perturbated_image.cuda()
-        assert perturbated_image.min() >= -128, 'input should be larger than -128'
-        assert perturbated_image.max() <=127, 'input should be less than 128'
+        perturbated_image = torch.clamp(perturbated_image, min=datamin, max=datamax)
+        perturbated_image = perturbated_image.to(args.device)
+        assert perturbated_image.min() >= datamin, 'input should be larger than -128'
+        assert perturbated_image.max() <=datamax, 'input should be less than 128'
         output = model(perturbated_image)
         output = normalizeOutput(output,model)
         target_probability = torch.nn.functional.softmax(output, dim=1).data[0][target]
+        if(not patch_grad.ne(0).any().item()):
+           #gradient is 0
+           #print("gradient 0 skipping " + str(count))
+           break
     perturbated_image = perturbated_image.cpu().numpy()
     applied_patch = applied_patch.cpu().numpy()
     return perturbated_image, applied_patch

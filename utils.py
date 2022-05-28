@@ -11,13 +11,14 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 
-#output from MAX78000
-def normalizeOutput(output, model):
-    output /= 128.
-    for key in model.__dict__['_modules'].keys():
-        if (hasattr(model.__dict__['_modules'][key], 'wide')
-                and model.__dict__['_modules'][key].wide):
-            output /= 256.
+#output from MAX78000   only if in eval mode
+def normalizeOutput(output, model, act_mode_8bit = False):
+    if act_mode_8bit:
+        output /= 128.
+        for key in model.__dict__['_modules'].keys():
+            if (hasattr(model.__dict__['_modules'][key], 'wide')
+                    and model.__dict__['_modules'][key].wide):
+                output /= 256.
     return output
 
 # Load the datasets
@@ -53,13 +54,13 @@ def normalizeOutput(output, model):
     # return train_loader, test_loader
 
 # Test the model on clean dataset
-def test(model, dataloader):
+def test(model, dataloader,args):
     model.eval()
     correct, total, loss = 0, 0, 0
     with torch.no_grad():
         for (images, labels) in dataloader:
-            #images = images.cuda()
-            #labels = labels.cuda()
+            images = images.to(args.device)
+            labels = labels.to(args.device)
             outputs = model(images)
             outputs = normalizeOutput(outputs, model)
             _, predicted = torch.max(outputs.data, 1)

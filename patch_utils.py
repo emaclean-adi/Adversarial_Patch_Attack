@@ -13,7 +13,9 @@ import pdb
 def patch_initialization(patch_type='rectangle', image_size=(3, 224, 224), noise_percentage=0.03):
     if patch_type == 'rectangle':
         mask_length = int((noise_percentage * image_size[1] * image_size[2])**0.5)
-        patch = np.floor((np.random.rand(image_size[0], mask_length, mask_length) - 0.5)*256).astype(np.int8)
+        #for 8bit mode
+        #patch = np.floor((np.random.rand(image_size[0], mask_length, mask_length) - 0.5)*256).astype(np.int8)
+        patch = np.floor((np.random.rand(image_size[0], mask_length, mask_length) - 0.5)*(2*(127/128)))
     return patch
 
 # Generate the mask and apply the patch
@@ -34,20 +36,27 @@ def mask_generation(mask_type='rectangle', patch=None, image_size=(3, 224, 224))
     return applied_patch, mask, x_location, y_location
 
 # Test the patch on dataset
-def test_patch(patch_type, target, patch, test_loader, model):
+def test_patch(patch_type, target, patch, test_loader, model,args):
     model.eval()
     test_total, test_actual_total, test_success = 0, 0, 0
+    if(args.act_mode_8bit):
+       datamin = -128
+       datamax = 127
+    else:
+       datamin = -1
+       datamax = 127/128
     for (image, label) in test_loader:
         test_total += label.shape[0]
         assert image.shape[0] == 1, 'Only one picture should be loaded each time.'
-        #image = image.cuda()
-        #label = label.cuda()
-        assert image.min() >= -128, 'input should be larger than -128'
-        assert image.max() <=  127, 'input should be less than 128'
+        assert image.min() >= datamin, 'input should be larger than -128'
+        assert image.max() <= datamax, 'input should be less than 128'
+        #image = image.to(args.device)
+        image = image.to(args.device)
+        label = label.to(args.device)
         output = model(image)
         output = normalizeOutput(output,model)
         _, predicted = torch.max(output.data, 1)
-        if predicted[0] != label and predicted[0].data.cpu().numpy() != target:
+        if predicted[0] == label and predicted[0].data.cpu().numpy() != target:
             #if this sample is not the target class we want to spoof then insert our patch into the image and evaluate the model on the image including the patch. if the patch changes the output of the model to the target we want then test succeeds
             test_actual_total += 1
             applied_patch, mask, x_location, y_location = mask_generation(patch_type, patch, image_size=(3, 128, 128))
@@ -55,9 +64,9 @@ def test_patch(patch_type, target, patch, test_loader, model):
             mask = torch.from_numpy(mask)
             #todo we need to change this to match expected input range for max78000 and normalize input data to correct data range after this
             perturbated_image = torch.mul(mask.type(torch.FloatTensor), applied_patch.type(torch.FloatTensor)) + torch.mul((1 - mask.type(torch.FloatTensor)), image.type(torch.FloatTensor))
-            #perturbated_image = perturbated_image.cuda()
-            assert image.min() >= -128, 'input should be larger than -128'
-            assert image.max() <=  127, 'input should be less than 128'
+            assert image.min() >= datamin, 'input should be larger than -128'
+            assert image.max() <= datamax, 'input should be less than 128'
+            perturbated_image = perturbated_image.to(args.device)
             output = model(perturbated_image)
             output = normalizeOutput(output,model)
             _, predicted = torch.max(output.data, 1)
@@ -75,3 +84,30 @@ def test_patch(patch_type, target, patch, test_loader, model):
                 # imgfile.save("training_pictures/" + str(test_success) + " groundtruth.png")
                 
     return test_success / test_actual_total
+    
+
+def save_patch(patchnumpy, patch_file_path, act8bitmode):
+    patchimg=np.moveaxis(patchnumpy,0,2)
+    if(act8bitmode):
+        patchimgunsigned = patchimg+128
+    else:
+        patchimgunsigned = (patchimg*128)+128
+    imgfile=Image.fromarray(patchimgunsigned.astype('uint8'),'RGB')
+    imgfile.save(patch_file_path)
+
+#returns patch as numpy array
+def load_patch(patch_file_path, act8bitmode):
+    #print("Loading patch file " + patch_file_path)
+    im = Image.open(patch_file_path)
+    rgb_im = im.convert('RGB')
+    pilarr = np.array(rgb_im)
+    #print(np.shape(pilarr))
+    #we use color channel first
+    pilarr=np.moveaxis(pilarr,2,0)
+    if(act8bitmode):
+        patch = pilarr - 128
+    else:
+        patch = (pilarr - 128)/128
+    #debug
+    #save_patch(patch,patch_file_path+"debug.png",act8bitmode)
+    return patch
