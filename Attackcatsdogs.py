@@ -111,8 +111,8 @@ batch_size = 1
 num_workers = 2
 train_size = 2000
 test_size = 2000
-noise_percentage = 0.05
-probability_threshold = 0.99
+noise_percentage = 0.1
+probability_threshold = 0.9
 #lr = 1.0
 lr = .01
 max_iteration = 1000
@@ -456,8 +456,8 @@ def main():
 
     # Test the accuracy of model on trainset and testset
     print("running model test")
-    #trainset_acc, test_acc = test(model, train_loader,args), test(model, test_loader,args)
-    #print('Accuracy of the model on clean trainset and testset is {:.3f}% and {:.3f}%'.format(100*trainset_acc, 100*test_acc))
+    trainset_acc, test_acc = test(model, train_loader,args), test(model, test_loader,args)
+    print('Accuracy of the model on clean trainset and testset is {:.3f}% and {:.3f}%'.format(100*trainset_acc, 100*test_acc))
 
     # Initialize the patch
     if(use_load_patch):
