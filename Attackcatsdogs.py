@@ -110,7 +110,10 @@ noise_percentage = 0.1
 probability_threshold = 0.9
 #lr = 1.0
 lr = 1
-max_iteration = 1000
+max_iteration = 100
+decay_factor = 0.9
+fastsign = True
+mifsgm = True # use momentum iterative fast sign gradient method : https://arxiv.org/pdf/1710.06081v3.pdf
 #max_iteration = 100000
 target = 1   #what the patch should look like: 0 cat 1 dog
 #epochs = 20
@@ -128,7 +131,7 @@ def main():
     """main"""
     use_load_patch = False
     evaluate_only = False
-    fastsign = True
+
     
     patch_file_path = "training_pictures/loaded_patch.png"
 
@@ -417,6 +420,8 @@ def main():
     print("max_iteration " + str(max_iteration))
     print("target " + str(target))
     print("fastsign " + str(fastsign))
+    print("use momentum " + str(mifsgm))
+    print("decay factor " + str(decay_factor))
 
 
     # Load the datasets
@@ -510,6 +515,10 @@ def main():
     #train
     for epoch in range(epochs):
         train_total, train_actual_total, train_success = 0, 0, 0
+        if(epoch == 0):
+            forgetting_factor = 0.1
+        else:
+            forgetting_factor = decay_factor
         for (image, label) in train_loader:
             train_total += label.shape[0]
             assert image.shape[0] == 1, 'Only one picture should be loaded each time.'
@@ -526,7 +535,7 @@ def main():
                  applied_patch, mask, x_location, y_location = mask_generation(patch_type, patch, image_size=(3, imgwidth, imgheight))
                  #applied_patch is numpy array
                  #optimize the patch for this image
-                 perturbated_image, applied_patch = patch_attack(args,image, applied_patch, mask, target, probability_threshold, model, lr, max_iteration, fastsign)
+                 perturbated_image, applied_patch = patch_attack(args,image, applied_patch, mask, target, probability_threshold, model, lr, max_iteration, fastsign, mifsgm, forgetting_factor)
                  perturbated_image = torch.from_numpy(perturbated_image).to(args.device)
                  assert perturbated_image.min() >= datamin, 'input should be larger than -128'
                  assert perturbated_image.max() <=  datamax, 'input should be less than 128'
@@ -588,7 +597,7 @@ def main():
 # According to reference [1], one image is attacked each time
 # Assert: applied patch should be a numpy
 # Return the final perturbated picture and the applied patch. Their types are both numpy
-def patch_attack(args,image, applied_patch, mask, target, probability_threshold, model, lr=1, max_iteration=100, fastsign = False):
+def patch_attack(args,image, applied_patch, mask, target, probability_threshold, model, lr=1, max_iteration=100, fastsign = False, momentum = False , decay_factor = 0 ):
     if(args.act_mode_8bit):
        datamin = -128
        datamax = 127
@@ -600,6 +609,8 @@ def patch_attack(args,image, applied_patch, mask, target, probability_threshold,
     mask = torch.from_numpy(mask)
     target_probability, count = 0, 0
     perturbated_image = torch.mul(mask.type(torch.FloatTensor), applied_patch.type(torch.FloatTensor)) + torch.mul((1 - mask.type(torch.FloatTensor)), image.type(torch.FloatTensor))
+    accumulated_grad = perturbated_image
+    accumulated_grad = accumulated_grad.zero_()
     while target_probability < probability_threshold and count < max_iteration:
         count += 1
         # Optimize the patch
@@ -619,6 +630,9 @@ def patch_attack(args,image, applied_patch, mask, target, probability_threshold,
         target_log_softmax.backward()
         patch_grad = perturbated_image.grad.clone().cpu()
         perturbated_image.grad.data.zero_()
+        if momentum:
+            accumulated_grad = torch.add(patch_grad, torch.mul(accumulated_grad, decay_factor))
+            patch_grad = accumulated_grad
         #pdb.set_trace()
         # if(randomstep):
         #   # if(not patch_grad.ne(0).any().item()):
