@@ -1,0 +1,182 @@
+$ source scripts/train_attackcatsdogs.sh
+Configuring device: MAX78000, simulate=False.
+Log file for this run: C:\MaximSDK\Tools\ai8x-tools\ai8x-training\logs\2022.05.27-024307\2022.05.27-024307.log
+{'start_epoch': 10, 'weight_bits': 8}
+=> loading checkpoint ../ai8x-synthesis/trained/ai85-catsdogs-qat8.pth.tar
+=> Checkpoint contents:
++----------------------+-------------+-----------+
+| Key                  | Type        | Value     |
+|----------------------+-------------+-----------|
+| arch                 | str         | ai85cdnet |
+| compression_sched    | dict        |           |
+| epoch                | int         | 148       |
+| extras               | dict        |           |
+| optimizer_state_dict | dict        |           |
+| optimizer_type       | type        | Adam      |
+| state_dict           | OrderedDict |           |
++----------------------+-------------+-----------+
+
+=> Checkpoint['extras'] contents:
++--------------+--------+----------+
+| Key          | Type   |    Value |
+|--------------+--------+----------|
+| best_epoch   | int    | 148      |
+| best_top1    | float  |  93.2282 |
+| current_top1 | float  |  93.2282 |
++--------------+--------+----------+
+
+Loaded compression schedule from checkpoint (epoch 148)
+=> loaded 'state_dict' from checkpoint '../ai8x-synthesis/trained/ai85-catsdogs-qat8.pth.tar'
+Optimizer Type: <class 'torch.optim.adam.Adam'>
+Optimizer Args: {'lr': 0.001, 'betas': (0.9, 0.999), 'eps': 1e-08, 'weight_decay': 0.0, 'amsgrad': False}
+device cuda
+augmented folder exits. Remove if you want to regenerate
+running model test
+Accuracy of the model on clean trainset and testset is 94.213% and 98.000%
+The shape of the patch is (3, 40, 40)
+training size 72000
+validation size 8000
+test size 5000
+number of training images used 10000
+number of training images used 20000
+number of training images used 30000
+number of training images used 40000
+number of training images used 50000
+number of training images used 60000
+number of training images used 70000
+Epoch:0 Patch attack success rate on trainset: 47.249%
+Epoch:0 Patch attack success rate on trainset: 51.457%
+Epoch:0 Patch attack success rate on testset: 52.606%
+number of training images used 10000
+number of training images used 20000
+number of training images used 30000
+number of training images used 40000
+number of training images used 50000
+number of training images used 60000
+number of training images used 70000
+Epoch:1 Patch attack success rate on trainset: 72.422%
+Epoch:1 Patch attack success rate on trainset: 61.674%
+Epoch:1 Patch attack success rate on testset: 59.089%
+number of training images used 10000
+number of training images used 20000
+number of training images used 30000
+number of training images used 40000
+number of training images used 50000
+number of training images used 60000
+number of training images used 70000
+Epoch:2 Patch attack success rate on trainset: 75.889%
+Epoch:2 Patch attack success rate on trainset: 65.613%
+Epoch:2 Patch attack success rate on testset: 64.218%
+number of training images used 10000
+number of training images used 20000
+number of training images used 30000
+number of training images used 40000
+number of training images used 50000
+number of training images used 60000
+number of training images used 70000
+Epoch:3 Patch attack success rate on trainset: 78.006%
+Epoch:3 Patch attack success rate on trainset: 66.311%
+Epoch:3 Patch attack success rate on testset: 64.998%
+number of training images used 10000
+number of training images used 20000
+number of training images used 30000
+number of training images used 40000
+number of training images used 50000
+number of training images used 60000
+number of training images used 70000
+Epoch:4 Patch attack success rate on trainset: 78.710%
+Epoch:4 Patch attack success rate on trainset: 66.065%
+Epoch:4 Patch attack success rate on testset: 65.860%
+number of training images used 10000
+number of training images used 20000
+number of training images used 30000
+number of training images used 40000
+number of training images used 50000
+number of training images used 60000
+number of training images used 70000
+Epoch:5 Patch attack success rate on trainset: 79.370%
+Epoch:5 Patch attack success rate on trainset: 66.598%
+Epoch:5 Patch attack success rate on testset: 67.870%
+number of training images used 10000
+number of training images used 20000
+number of training images used 30000
+number of training images used 40000
+number of training images used 50000
+number of training images used 60000
+number of training images used 70000
+Epoch:6 Patch attack success rate on trainset: 79.646%
+Epoch:6 Patch attack success rate on trainset: 69.307%
+Epoch:6 Patch attack success rate on testset: 69.307%
+number of training images used 10000
+number of training images used 20000
+number of training images used 30000
+number of training images used 40000
+number of training images used 50000
+number of training images used 60000
+number of training images used 70000
+Epoch:7 Patch attack success rate on trainset: 79.616%
+Epoch:7 Patch attack success rate on trainset: 70.086%
+Epoch:7 Patch attack success rate on testset: 69.224%
+number of training images used 10000
+number of training images used 20000
+number of training images used 30000
+number of training images used 40000
+number of training images used 50000
+number of training images used 60000
+number of training images used 70000
+Epoch:8 Patch attack success rate on trainset: 80.171%
+Epoch:8 Patch attack success rate on trainset: 69.142%
+Epoch:8 Patch attack success rate on testset: 67.214%
+number of training images used 10000
+number of training images used 20000
+number of training images used 30000
+number of training images used 40000
+number of training images used 50000
+number of training images used 60000
+number of training images used 70000
+Epoch:9 Patch attack success rate on trainset: 80.361%
+Epoch:9 Patch attack success rate on trainset: 68.691%
+Epoch:9 Patch attack success rate on testset: 69.389%
+number of training images used 10000
+number of training images used 20000
+number of training images used 30000
+number of training images used 40000
+number of training images used 50000
+number of training images used 60000
+number of training images used 70000
+Epoch:10 Patch attack success rate on trainset: 80.332%
+Epoch:10 Patch attack success rate on trainset: 69.594%
+Epoch:10 Patch attack success rate on testset: 69.101%
+number of training images used 10000
+number of training images used 20000
+number of training images used 30000
+number of training images used 40000
+number of training images used 50000
+number of training images used 60000
+number of training images used 70000
+Epoch:11 Patch attack success rate on trainset: 80.722%
+Epoch:11 Patch attack success rate on trainset: 69.676%
+Epoch:11 Patch attack success rate on testset: 69.758%
+number of training images used 10000
+number of training images used 20000
+number of training images used 30000
+number of training images used 40000
+number of training images used 50000
+number of training images used 60000
+number of training images used 70000
+Epoch:12 Patch attack success rate on trainset: 80.895%
+Epoch:12 Patch attack success rate on trainset: 69.799%
+Epoch:12 Patch attack success rate on testset: 68.445%
+number of training images used 10000
+number of training images used 20000
+number of training images used 30000
+number of training images used 40000
+number of training images used 50000
+number of training images used 60000
+number of training images used 70000
+Epoch:13 Patch attack success rate on trainset: 81.112%
+Epoch:13 Patch attack success rate on trainset: 68.691%
+Epoch:13 Patch attack success rate on testset: 69.019%
+number of training images used 10000
+number of training images used 20000
+number of training images used 30000

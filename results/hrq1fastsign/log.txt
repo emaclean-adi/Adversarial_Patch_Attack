@@ -1,0 +1,62 @@
+$ source scripts/train_attackhumansrobots-q.sh
+Configuring device: MAX78000, simulate=True.
+Log file for this run: C:\MaximSDK\Tools\ai8x-tools\ai8x-training\logs\2022.05.29-014721\2022.05.29-014721.log
+{'start_epoch': 10, 'weight_bits': 8}
+=> loading checkpoint ../ai8x-synthesis/humansrobots/humansrobots1_qat8-q.pth.tar
+=> Checkpoint contents:
++----------------------+-------------+-----------+
+| Key                  | Type        | Value     |
+|----------------------+-------------+-----------|
+| arch                 | str         | ai85cdnet |
+| compression_sched    | dict        |           |
+| epoch                | int         | 244       |
+| extras               | dict        |           |
+| optimizer_state_dict | dict        |           |
+| optimizer_type       | type        | Adam      |
+| state_dict           | OrderedDict |           |
++----------------------+-------------+-----------+
+
+=> Checkpoint['extras'] contents:
++-----------------+--------+-------------------+
+| Key             | Type   | Value             |
+|-----------------+--------+-------------------|
+| best_epoch      | int    | 54                |
+| best_top1       | float  | 97.08404802744425 |
+| clipping_method | str    | MAX_BIT_SHIFT     |
+| current_top1    | float  | 96.85534591194968 |
++-----------------+--------+-------------------+
+
+Loaded compression schedule from checkpoint (epoch 244)
+=> loaded 'state_dict' from checkpoint '../ai8x-synthesis/humansrobots/humansrobots1_qat8-q.pth.tar'
+Optimizer Type: <class 'torch.optim.sgd.SGD'>
+Optimizer Args: {'lr': 0.1, 'momentum': 0.9, 'dampening': 0, 'weight_decay': 0.0001, 'nesterov': False}
+device cuda
+Noise percentage 0.1
+probability_threshold 0.9
+lr 1
+max_iteration 1000
+target 1
+fastsign True
+augmented folder exits. Remove if you want to regenerate
+training size 12574
+validation size 1397
+test size 695
+Running in 8 bit mode.
+WARNING Running in 8 bit mode but training enabled
+running model test
+Accuracy of the model on clean trainset and testset is 88.460% and 92.806%
+The shape of the patch is (3, 40, 40)
+number of training images used 10000
+Epoch:0 Patch attack success rate on trainset: 51.937%
+Epoch:0 Patch attack success rate on trainset: 40.000%
+Epoch:0 Patch attack success rate on testset: 38.667%
+number of training images used 10000
+Epoch:1 Patch attack success rate on trainset: 60.561%
+Epoch:1 Patch attack success rate on trainset: 44.667%
+Epoch:1 Patch attack success rate on testset: 45.667%
+number of training images used 10000
+Epoch:2 Patch attack success rate on trainset: 60.775%
+Epoch:2 Patch attack success rate on trainset: 44.667%
+Epoch:2 Patch attack success rate on testset: 43.000%
+
+
