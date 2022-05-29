@@ -110,8 +110,8 @@ noise_percentage = 0.1
 probability_threshold = 0.9
 #lr = 1.0
 lr = 1
-max_iteration = 100
-decay_factor = 0.9
+max_iteration = 10
+decay_factor = 1
 fastsign = True
 mifsgm = True # use momentum iterative fast sign gradient method : https://arxiv.org/pdf/1710.06081v3.pdf
 #max_iteration = 100000
@@ -516,7 +516,7 @@ def main():
     for epoch in range(epochs):
         train_total, train_actual_total, train_success = 0, 0, 0
         if(epoch == 0):
-            forgetting_factor = 0.1
+            forgetting_factor = decay_factor
         else:
             forgetting_factor = decay_factor
         for (image, label) in train_loader:
@@ -609,8 +609,8 @@ def patch_attack(args,image, applied_patch, mask, target, probability_threshold,
     mask = torch.from_numpy(mask)
     target_probability, count = 0, 0
     perturbated_image = torch.mul(mask.type(torch.FloatTensor), applied_patch.type(torch.FloatTensor)) + torch.mul((1 - mask.type(torch.FloatTensor)), image.type(torch.FloatTensor))
-    accumulated_grad = perturbated_image
-    accumulated_grad = accumulated_grad.zero_()
+    if(momentum):
+        accumulated_grad = torch.zeros(perturbated_image.size())
     while target_probability < probability_threshold and count < max_iteration:
         count += 1
         # Optimize the patch

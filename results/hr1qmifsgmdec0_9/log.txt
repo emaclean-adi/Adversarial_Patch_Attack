@@ -1,0 +1,69 @@
+this was with bug fixes
+
+$ source scripts/train_attackhumansrobots-q.sh
+Configuring device: MAX78000, simulate=True.
+Log file for this run: C:\MaximSDK\Tools\ai8x-tools\ai8x-training\logs\2022.05.29-145117\2022.05.29-145117.log
+WARNING: CUDA hardware acceleration is not available, training will be slow
+{'start_epoch': 10, 'weight_bits': 8}
+=> loading checkpoint ../ai8x-synthesis/robotshumans/humansrobots1_qat-q.pth.tar
+=> Checkpoint contents:
++----------------------+-------------+-----------+
+| Key                  | Type        | Value     |
+|----------------------+-------------+-----------|
+| arch                 | str         | ai85cdnet |
+| compression_sched    | dict        |           |
+| epoch                | int         | 244       |
+| extras               | dict        |           |
+| optimizer_state_dict | dict        |           |
+| optimizer_type       | type        | Adam      |
+| state_dict           | OrderedDict |           |
++----------------------+-------------+-----------+
+
+=> Checkpoint['extras'] contents:
++-----------------+--------+-------------------+
+| Key             | Type   | Value             |
+|-----------------+--------+-------------------|
+| best_epoch      | int    | 54                |
+| best_top1       | float  | 97.08404802744425 |
+| clipping_method | str    | MAX_BIT_SHIFT     |
+| current_top1    | float  | 96.85534591194968 |
++-----------------+--------+-------------------+
+
+Loaded compression schedule from checkpoint (epoch 244)
+=> loaded 'state_dict' from checkpoint '../ai8x-synthesis/robotshumans/humansrobots1_qat-q.pth.tar'
+Optimizer Type: <class 'torch.optim.sgd.SGD'>
+Optimizer Args: {'lr': 0.1, 'momentum': 0.9, 'dampening': 0, 'weight_decay': 0.0001, 'nesterov': False}
+device cpu
+Noise percentage 0.1
+probability_threshold 0.9
+lr 1
+max_iteration 1000
+target 1
+fastsign True
+use momentum True
+decay factor 0.9
+augmented folder exits. Remove if you want to regenerate
+training size 12574
+validation size 1397
+test size 695
+Running in 8 bit mode.
+WARNING Running in 8 bit mode but training enabled
+running model test
+Accuracy of the model on clean trainset and testset is 88.460% and 92.806%
+The shape of the patch is (3, 40, 40)
+number of training images used 10000
+Epoch:0 Patch attack success rate on trainset: 53.397%
+Epoch:0 Patch attack success rate on trainset: 43.667%
+Epoch:0 Patch attack success rate on testset: 40.333%
+number of training images used 10000
+Epoch:1 Patch attack success rate on trainset: 60.814%
+Epoch:1 Patch attack success rate on trainset: 45.000%
+Epoch:1 Patch attack success rate on testset: 45.667%
+number of training images used 10000
+Epoch:2 Patch attack success rate on trainset: 61.164%
+Epoch:2 Patch attack success rate on trainset: 47.333%
+Epoch:2 Patch attack success rate on testset: 42.000%
+number of training images used 10000
+Epoch:3 Patch attack success rate on trainset: 61.261%
+Epoch:3 Patch attack success rate on trainset: 41.667%
+Epoch:3 Patch attack success rate on testset: 41.000%
