@@ -102,14 +102,18 @@ def load_patch(patch_file_path, act8bitmode):
     #print("Loading patch file " + patch_file_path)
     im = Image.open(patch_file_path)
     rgb_im = im.convert('RGB')
-    pilarr = np.array(rgb_im)
+    pilarr = np.array(rgb_im,dtype=np.uint8)
     #print(np.shape(pilarr))
     #we use color channel first
     pilarr=np.moveaxis(pilarr,2,0)
     if(act8bitmode):
-        patch = pilarr - 128
+        #patch = pilarr - 128
+        patch =pilarr.astype(np.float32)
+        patch = patch - 128
     else:
-        patch = (pilarr - 128)/128
+        #patch = (pilarr - 128)/128
+        patch = pilarr.astype(np.float32)
+        patch = (patch -128)/128
     #debug
     #save_patch(patch,patch_file_path+"debug.png",act8bitmode)
     return patch
