@@ -28,6 +28,8 @@ We revisited training on the quantized models directly. Because of quantization,
 
 The success rate quickly plateaued and stopped improving. To avoid getting stuck at a local maxima[4] we adapted the momentum iterative fast gradient sign method (MI-FGSM), algorithm 1 from [5] to the quantized model with alpha = 1 and decay factor mu = 0.9. We did not observe any improvement using the MI_FGSM.
 
+Since the gradient is often zero we also tried adding a random step when the gradient was equal to zero. We would add a random value {-1,0,1} to each pixel value clipped to -128,127 when the gradient was zero. This would force it to explore further with a random walk.  This made the results worse.
+
 
 ## Results
 
