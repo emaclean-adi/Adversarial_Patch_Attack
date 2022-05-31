@@ -10,17 +10,19 @@ import pdb
 
 # Initialize the patch
 # TODO: Add circle type
-def patch_initialization(patch_type='rectangle', image_size=(3, 224, 224), noise_percentage=0.03):
+def patch_initialization(patch_type='rectangle', image_size=(3, 128, 128), noise_percentage=0.03,act8bitmode = False):
     if patch_type == 'rectangle':
         mask_length = int((noise_percentage * image_size[1] * image_size[2])**0.5)
-        #for 8bit mode
-        #patch = np.floor((np.random.rand(image_size[0], mask_length, mask_length) - 0.5)*256).astype(np.int8)
-        patch = np.floor((np.random.rand(image_size[0], mask_length, mask_length) - 0.5)*(2*(127/128)))
+        if(act8bitmode):
+            #for 8bit mode
+            patch = np.floor((np.random.rand(image_size[0], mask_length, mask_length) - 0.5)*256).astype(np.int8)
+        else:
+            patch = np.floor((np.random.rand(image_size[0], mask_length, mask_length) - 0.5)*(2*(127/128)))
     return patch
 
 # Generate the mask and apply the patch
 # TODO: Add circle type
-def mask_generation(mask_type='rectangle', patch=None, image_size=(3, 224, 224)):
+def mask_generation(mask_type='rectangle', patch=None, image_size=(3, 128, 128)):
     applied_patch = np.zeros(image_size)
     if mask_type == 'rectangle':
         # patch rotation
