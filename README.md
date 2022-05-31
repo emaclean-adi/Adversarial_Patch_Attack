@@ -5,6 +5,12 @@ Forked from https://github.com/zhaojb17/Adversarial_Patch_Attack
 
 We adapted adversarial patches[1] to attack the quantized ai85cdnet on the MAX78000. We generated adversarial patches against the cats_vs_dogs model provided with the SDK as well as our humans vs robots model we retrained for GTC. We acheived a 70% attack success rate for the cats_vs_dogs model and 45% success rate for our robots/humans model. These models are 98% and 90% accurate, respectively when no adversarial patch is introduced.
 
+## To run
+
+Copy the python scripts to the ai8x_training folder and the train_attack shell scripts to the scripts directory and make a folder in the ai8x_training folder called training_pictures . To run the cats_vs_dogs attack on the quantized catsvsdogs model,
+source scripts/train_attackcatsdogs-q.sh 
+
+The generated patches will be saved to training_pictures.
 
 #Adversarial Patches
 
